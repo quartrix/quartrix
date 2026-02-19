@@ -19,6 +19,29 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
+// Fungsi untuk retry anonymous sign-in dengan exponential backoff
+async function signInWithRetry(maxRetries = 3) {
+  let lastError = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Anonymous sign-in attempt ${attempt}/${maxRetries}`);
+      const result = await signInAnonymously(auth);
+      return result;
+    } catch (error) {
+      console.warn(`Attempt ${attempt} failed:`, error.message);
+      lastError = error;
+      
+      // Wait before retry (exponential backoff: 500ms, 1000ms, 2000ms)
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt - 1)));
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
 // Fungsi login yang dipanggil dari HTML
 window.login = async () => {
   const username = document.getElementById("username").value.trim();
@@ -32,8 +55,8 @@ window.login = async () => {
   /* ADMIN */
   if (username === "admin" && password === "admin123") {
     try {
-      // Firebase Anonymous Auth untuk dapat uid
-      const userCredential = await signInAnonymously(auth);
+      // Firebase Anonymous Auth untuk dapat uid - dengan retry
+      const userCredential = await signInWithRetry(3);
       const uid = userCredential.uid;
       
       // Simpan status admin ke Firebase database
@@ -64,7 +87,20 @@ window.login = async () => {
       window.location.href = "dashboard.html";
     } catch (error) {
       console.error("Error during admin login:", error);
-      errorMsg.innerText = "Terjadi kesalahan saat login. Silakan coba lagi.";
+      
+      // Berikan pesan error yang lebih spesifik
+      let errorMessage = "Terjadi kesalahan saat login. Silakan coba lagi.";
+      if (error.code === "auth/network-request-failed") {
+        errorMessage = "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.";
+      } else if (error.code === "auth/popup-closed-by-user") {
+        errorMessage = "Popup ditutup sebelum proses selesai. Silakan coba lagi.";
+      } else if (error.code === "auth/internal-error") {
+        errorMessage = "Terjadi kesalahan internal. Silakan coba lagi.";
+      } else if (error.message && error.message.includes("net::ERR_CONNECTION_REFUSED")) {
+        errorMessage = "Tidak dapat terhubung ke server. Silakan coba lagi nanti.";
+      }
+      
+      errorMsg.innerText = errorMessage;
       errorMsg.style.display = "block";
     }
     return;
@@ -94,7 +130,8 @@ window.login = async () => {
       // Validasi nama (case-insensitive)
       if (data.nama.toLowerCase() === username.toLowerCase()) {
         try {
-          const userCredential = await signInAnonymously(auth);
+          // Gunakan retry mechanism untuk anonymous auth
+          const userCredential = await signInWithRetry(3);
           const uid = userCredential.uid;
           
           localStorage.setItem("isLogin", "true");
@@ -117,7 +154,20 @@ window.login = async () => {
           window.location.href = "dashboard.html";
         } catch (authError) {
           console.error("Error during auth:", authError);
-          errorMsg.innerText = "Terjadi kesalahan saat autentikasi. Silakan coba lagi.";
+          
+          // Berikan pesan error yang lebih spesifik
+          let errorMessage = "Terjadi kesalahan saat autentikasi. Silakan coba lagi.";
+          if (authError.code === "auth/network-request-failed") {
+            errorMessage = "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.";
+          } else if (authError.code === "auth/popup-closed-by-user") {
+            errorMessage = "Popup ditutup sebelum proses selesai. Silakan coba lagi.";
+          } else if (authError.code === "auth/internal-error") {
+            errorMessage = "Terjadi kesalahan internal. Silakan coba lagi.";
+          } else if (authError.message && authError.message.includes("net::ERR_CONNECTION_REFUSED")) {
+            errorMessage = "Tidak dapat terhubung ke server. Silakan coba lagi nanti.";
+          }
+          
+          errorMsg.innerText = errorMessage;
           errorMsg.style.display = "block";
         }
       } else {
@@ -132,7 +182,18 @@ window.login = async () => {
     console.error("Error during login:", error);
     loginBtn.classList.remove("loading");
     loginBtn.textContent = "Masuk";
-    errorMsg.innerText = "Terjadi kesalahan. Silakan coba lagi.";
+    
+    // Berikan pesan error yang lebih spesifik
+    let errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
+    if (error.code === "auth/network-request-failed") {
+      errorMessage = "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.";
+    } else if (error.code === "permission-denied") {
+      errorMessage = "Akses ditolak. Silakan hubungi admin.";
+    } else if (error.message && error.message.includes("net::ERR_CONNECTION_REFUSED")) {
+      errorMessage = "Tidak dapat terhubung ke server. Silakan coba lagi nanti.";
+    }
+    
+    errorMsg.innerText = errorMessage;
     errorMsg.style.display = "block";
   }
 };
