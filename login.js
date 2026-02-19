@@ -2,7 +2,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signInAnonymously, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // Config Firebase
 const firebaseConfig = {
@@ -19,22 +19,73 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// Fungsi untuk retry anonymous sign-in dengan exponential backoff
-async function signInWithRetry(maxRetries = 3) {
+// Fungsi untuk mendeteksi apakah browser adalah iOS Safari
+function isIOSafari() {
+  const ua = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(ua) && /Safari/.test(ua) && !/Chrome/.test(ua);
+}
+
+// Fungsi untuk setup Firebase Auth persistence
+async function setupAuthPersistence() {
+  try {
+    // Cek apakah sudah ada session
+    if (auth.currentUser) {
+      console.log("User already logged in:", auth.currentUser.uid);
+      return auth.currentUser;
+    }
+    
+    // Coba set persistence - gunakan local untuk persist lebih lama di iOS
+    // Jika gagal, fallback ke session
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      console.log("Auth persistence set to: local");
+    } catch (persistenceError) {
+      console.warn("Local persistence failed, trying session:", persistenceError);
+      await setPersistence(auth, browserSessionPersistence);
+      console.log("Auth persistence set to: session");
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error setting auth persistence:", error);
+    return null;
+  }
+}
+
+// Fungsi untuk retry anonymous sign-in dengan exponential backoff dan retry lebih banyak
+async function signInWithRetry(maxRetries = 5, initialDelay = 1000) {
   let lastError = null;
+  
+  // Setup persistence sebelum login
+  await setupAuthPersistence();
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`Anonymous sign-in attempt ${attempt}/${maxRetries}`);
       const result = await signInAnonymously(auth);
+      console.log("Anonymous sign-in successful:", result.user.uid);
       return result;
     } catch (error) {
       console.warn(`Attempt ${attempt} failed:`, error.message);
       lastError = error;
       
-      // Wait before retry (exponential backoff: 500ms, 1000ms, 2000ms)
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt - 1)));
+      // Check for specific iOS errors
+      if (error.code === "auth/network-request-failed" || 
+          error.message.includes("net::ERR_CONNECTION_REFUSED")) {
+        // Longer delay for network issues on iOS
+        const delay = initialDelay * Math.pow(2, attempt - 1) * (isIOSafari() ? 1.5 : 1);
+        console.log(`Waiting ${delay}ms before retry...`);
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } else if (error.code === "auth/popup-closed-by-user") {
+        // User closed popup - don't retry automatically
+        throw error;
+      } else {
+        // Other errors - still retry with backoff
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, initialDelay * Math.pow(2, attempt - 1)));
+        }
       }
     }
   }
