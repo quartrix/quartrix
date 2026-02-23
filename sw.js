@@ -1,19 +1,22 @@
 // Service Worker for QUARTRIX PWA
-const CACHE_NAME = 'quartrix-v1';
+const CACHE_NAME = 'quartrix-v2';
+const BASE_URL = 'https://quartrix.xyz';
+
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/login.html',
-  '/dashboard.html',
-  '/profile.html',
-  '/jadwal.html',
-  '/foto.html',
-  '/siswa.html',
-  '/struktur.html',
-  '/style.css',
-  '/login.js',
-  '/dashboard.js',
-  '/profile.js',
+  BASE_URL + '/',
+  BASE_URL + '/index.html',
+  BASE_URL + '/splash.html',
+  BASE_URL + '/login.html',
+  BASE_URL + '/dashboard.html',
+  BASE_URL + '/profile.html',
+  BASE_URL + '/jadwal.html',
+  BASE_URL + '/foto.html',
+  BASE_URL + '/siswa.html',
+  BASE_URL + '/struktur.html',
+  BASE_URL + '/style.css',
+  BASE_URL + '/login.js',
+  BASE_URL + '/dashboard.js',
+  BASE_URL + '/profile.js',
   'https://i.ibb.co.com/7xxVWwH7/IMG-8428.png'
 ];
 
