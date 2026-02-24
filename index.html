@@ -5,10 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>QUARTRIX - Pasti Asik</title>
   <link rel="icon" href="https://i.ibb.co.com/7xxVWwH7/IMG-8428.png" />
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#ff8c42" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <style>
     /* Reset dan font */
     * {
@@ -495,8 +491,8 @@
   <nav id="navMenu">
     <a href="index.html">Beranda</a>
     <a href="jadwal.html">Jadwal</a>
-    <a href="foto.html">Foto</a>
-    <a href="siswa.html">Siswa</a>
+    <a href="/foto">Foto</a>
+    <a href="/siswa">Siswa</a>
     <a href="struktur.html">Struktur</a>
     <div class="social-menu">
       <a href="https://www.instagram.com/quartriix/" target="_blank" aria-label="Instagram">
@@ -573,19 +569,6 @@
     if (role) {
       loginBtn.textContent = "Dashboard";
       loginBtn.href = "dashboard.html";
-    }
-
-    // Register Service Worker for PWA
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(registration => {
-            console.log('SW registered:', registration.scope);
-          })
-          .catch(error => {
-            console.log('SW registration failed:', error);
-          });
-      });
     }
   </script>
 </body>
