@@ -865,9 +865,10 @@
       const defaultAvatar =
         "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iNzUiIGN5PSI3NSIgcj0iNzUiIGZpbGw9IiNmZmY1ZTYiLz48cGF0aCBkPSJNNzUgNzVDODAgNzUgODUgNzAgODUgNjVDNjg1IDU5IDgwIDU1IDc1IDU1QzY5IDU1IDY1IDU5IDY1IDY1QzY1IDcwIDY5IDc1IDc1IDc1WiIgZmlsbD0iIzNlMmMyMyIvPjxwYXRoIGQ9Ik04NSA2NUM4NSA3MCA4OCA3NSA5MSA3NUM5NCA3NSA5NSA3MCA5NSA2NUw5NSA1OEM5NCA1MyA5MSA0OCA4OCA0OEM4NSA0OCA4MiA1MyA4MiA1OEw4MiA2NUM4NSA2NVoiIGZpbGw9IiMzZTJjMjMiLz48L3N2Zz4=";
 
-      // Get absen from URL parameter
+      // Get absen and nama from URL parameter
       const urlParams = new URLSearchParams(window.location.search);
       const absenSiswa = urlParams.get("absen");
+      const namaSiswa = urlParams.get("nama");
 
       // Function to go back to dashboard
       window.goToDashboard = () => {
@@ -893,15 +894,33 @@
         }
 
         try {
-          // Load student data
-          const siswaSnapshot = await get(ref(db, "siswa/" + absenSiswa));
+      // Load student data
+          let siswaSnapshot = await get(ref(db, "siswa/" + absenSiswa));
 
+          // Fallback: If absen doesn't exist, try to find by name
           if (!siswaSnapshot.exists()) {
-            showError();
-            return;
+            const allSiswaSnapshot = await get(ref(db, "siswa"));
+            if (allSiswaSnapshot.exists()) {
+              const allSiswa = allSiswaSnapshot.val();
+              for (const absenKey in allSiswa) {
+                const searchName = (namaSiswa || absenSiswa || "").trim();
+                if (allSiswa[absenKey].nama && allSiswa[absenKey].nama.toLowerCase() === searchName.toLowerCase()) {
+                  siswaSnapshot = { exists: () => true, val: () => allSiswa[absenKey] };
+                  break;
+                }
+              }
+            }
+            
+            if (!siswaSnapshot.exists()) {
+              showError();
+              return;
+            }
           }
 
           const siswaData = siswaSnapshot.val();
+
+          // Get the correct absen from the found student data
+          const correctAbsen = siswaData.absen || absenSiswa;
 
           // Update UI
           document.getElementById("profilePhoto").src =
@@ -909,12 +928,12 @@
           document.getElementById("profileName").textContent =
             siswaData.nama || "Nama tidak tersedia";
           document.getElementById("profileAbsen").textContent =
-            "Absen: " + (siswaData.absen || "-");
+            "Absen: " + (correctAbsen || "-");
           document.getElementById("profileBadge").textContent =
-            siswaData.absen || "?";
+            correctAbsen || "?";
 
-          // Load tasks data
-          await loadTasks(absenSiswa);
+          // Load tasks data using the correct absen
+          await loadTasks(correctAbsen);
 
           // Show profile content
           document.getElementById("loadingState").style.display = "none";

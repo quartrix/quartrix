@@ -990,7 +990,7 @@ function initApp() {
         
         const item = document.createElement("div");
         item.className = "semua-siswa-item";
-        item.onclick = () => lihatProfilSiswa(siswa.absen);
+        item.onclick = () => lihatProfilSiswa(siswa.absen, siswa.nama);
         item.innerHTML = `
           <img src="${fotoSrc}" alt="Foto ${siswa.nama}" onerror="this.src='${defaultFoto}'">
           <div class="info">
@@ -1005,9 +1005,14 @@ function initApp() {
   }
 
   // Fungsi untuk melihat profil siswa lain - Redirect ke profile.html
-  function lihatProfilSiswa(absenSiswa) {
-    // Redirect ke halaman profile.html dengan parameter absen
-    window.location.href = "profile.html?absen=" + absenSiswa;
+  function lihatProfilSiswa(absenSiswa, namaSiswa) {
+    // Redirect ke halaman profile.html dengan parameter absen dan nama (fallback)
+    const params = new URLSearchParams();
+    params.set("absen", absenSiswa);
+    if (namaSiswa) {
+      params.set("nama", namaSiswa);
+    }
+    window.location.href = "profile.html?" + params.toString();
   }
 
   // Expose functions to window for onclick handlers
