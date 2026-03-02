@@ -55,16 +55,16 @@ async function setupAuthPersistence() {
     console.log("Persistence already setup, skipping...");
     return auth.currentUser || null;
   }
-  
+
   persistenceSetupAttempted = true;
-  
+
   try {
     // Cek apakah sudah ada session yang aktif
     if (auth.currentUser) {
       console.log("User already logged in:", auth.currentUser.uid);
       return auth.currentUser;
     }
-    
+
     // 🔥 FIX UTAMA: Tentukan persistence berdasarkan browser SEBELUM auth operation
     // iOS Safari → Gunakan session persistence (lebih stabil)
     // Browser lain → Gunakan local persistence
@@ -75,12 +75,15 @@ async function setupAuthPersistence() {
       await setPersistence(auth, browserLocalPersistence);
       console.log("Other browsers → local persistence");
     }
-    
+
     // Debug info untuk iOS
     console.log("[iOS Debug] User Agent:", navigator.userAgent);
     console.log("[iOS Debug] isIOSafari:", isIOSafari());
-    console.log("[iOS Debug] LocalStorage available:", typeof localStorage !== 'undefined');
-    
+    console.log(
+      "[iOS Debug] LocalStorage available:",
+      typeof localStorage !== "undefined",
+    );
+
     return null;
   } catch (error) {
     console.error("Error setting auth persistence:", error);
@@ -98,9 +101,9 @@ function waitForAuthState() {
       resolve(auth.currentUser);
       return;
     }
-    
+
     // Kalau belum ada, tunggu onAuthStateChanged
-    const unsub = onAuthStateChanged(auth, user => {
+    const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
         unsub();
         console.log("Auth state ready:", user.uid);
@@ -115,15 +118,15 @@ function waitForAuthState() {
 async function signInOnce() {
   // Setup persistence SEBELUM login (penting!)
   await setupAuthPersistence();
-  
+
   try {
     console.log("Anonymous sign-in attempt (1x only)");
     const result = await signInAnonymously(auth);
     console.log("Anonymous sign-in successful:", result.user.uid);
-    
+
     // 🔥 FIX: Tunggu auth state benar-benar siap sebelum return
     await waitForAuthState();
-    
+
     return result;
   } catch (error) {
     console.error("Anonymous sign-in failed:", error.message);
@@ -135,11 +138,11 @@ async function signInOnce() {
 async function syncAdminStatus() {
   const role = localStorage.getItem("role");
   const storedUid = localStorage.getItem("uid");
-  
+
   if (role === "admin") {
     // Dapatkan uid dari current Firebase auth (bukan dari localStorage)
     const currentUid = auth.currentUser?.uid;
-    
+
     if (currentUid) {
       // Gunakan uid dari current auth session
       const adminRef = ref(db, "admin/" + currentUid);
@@ -149,9 +152,12 @@ async function syncAdminStatus() {
         await set(adminRef, {
           isAdmin: true,
           nama: "ADMIN",
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         });
-        console.log("Admin status disinkronkan ke Firebase dengan uid:", currentUid);
+        console.log(
+          "Admin status disinkronkan ke Firebase dengan uid:",
+          currentUid,
+        );
       }
       return currentUid;
     }
@@ -165,7 +171,7 @@ async function initAuth() {
     // 🔥 FIX: Login 1x saja, tunggu auth state ready
     await signInOnce();
     console.log("Anonymous login berhasil");
-    
+
     try {
       // Sinkronkan status admin jika perlu
       await syncAdminStatus();
@@ -173,21 +179,24 @@ async function initAuth() {
       console.error("Error sync admin status:", syncError);
       // Lanjutkan meskipun sync gagal
     }
-    
+
     initApp(); // Jalankan app setelah auth berhasil
   } catch (error) {
     console.error("Error anonymous login:", error);
-    
+
     // Tampilkan pesan error yang lebih spesifik ke user
-    let errorMessage = "Gagal terhubung ke server. Silakan refresh halaman ini.";
+    let errorMessage =
+      "Gagal terhubung ke server. Silakan refresh halaman ini.";
     if (error.code === "auth/network-request-failed") {
-      errorMessage = "Tidak dapat terhubung ke server. Periksa koneksi internet Anda dan refresh halaman.";
+      errorMessage =
+        "Tidak dapat terhubung ke server. Periksa koneksi internet Anda dan refresh halaman.";
     } else if (error.code === "auth/popup-closed-by-user") {
-      errorMessage = "Popup ditutup sebelum proses selesai. Silakan refresh halaman.";
+      errorMessage =
+        "Popup ditutup sebelum proses selesai. Silakan refresh halaman.";
     } else if (error.code === "auth/internal-error") {
       errorMessage = "Terjadi kesalahan internal. Silakan refresh halaman.";
     }
-    
+
     // Tampilkan pesan error ke user
     document.body.innerHTML = `
     <div style="
@@ -308,12 +317,11 @@ function initApp() {
     }
   }
 
-
   // Modal edit profil - Changed to redirect to profile.html
   const editProfilBtn = document.getElementById("editProfilBtn");
   const lihatProfilBtn = document.getElementById("lihatProfilBtn");
   const modalProfil = document.getElementById("modalProfil");
-  
+
   // Event listener for Lihat Profil button (view own profile)
   if (lihatProfilBtn) {
     lihatProfilBtn.addEventListener("click", () => {
@@ -321,7 +329,7 @@ function initApp() {
       window.location.href = "profile.html?absen=" + absen;
     });
   }
-  
+
   if (editProfilBtn) {
     editProfilBtn.addEventListener("click", () => {
       if (role === "admin") return alert("Admin tidak bisa edit profil!");
@@ -383,26 +391,14 @@ function initApp() {
           return;
         }
         // Lanjutkan jika tidak ada
-        proceedUpdate(
-          newNama,
-          newAbsen,
-          newAbsenLogin,
-          fotoURL,
-          oldAbsen,
-        );
+        proceedUpdate(newNama, newAbsen, newAbsenLogin, fotoURL, oldAbsen);
       });
     } else {
       proceedUpdate(newNama, newAbsen, newAbsenLogin, fotoURL, oldAbsen);
     }
   }
 
-  function proceedUpdate(
-    newNama,
-    newAbsen,
-    newAbsenLogin,
-    fotoURL,
-    oldAbsen,
-  ) {
+  function proceedUpdate(newNama, newAbsen, newAbsenLogin, fotoURL, oldAbsen) {
     set(ref(db, "siswa/" + newAbsenLogin), {
       nama: newNama,
       absen: newAbsen,
@@ -512,8 +508,7 @@ function initApp() {
   const btnImportSiswa = document.getElementById("btnImportSiswa");
   btnImportSiswa.addEventListener("click", async () => {
     // Pastikan 'async' di sini
-    if (role !== "admin")
-      return alert("Hanya admin yang bisa import siswa!");
+    if (role !== "admin") return alert("Hanya admin yang bisa import siswa!");
     if (
       confirm(
         "Apakah Anda yakin ingin import semua 34 siswa? Ini akan menimpa data yang ada.",
@@ -552,7 +547,7 @@ function initApp() {
     {
       hari: "Senin",
       mataPelajaran: "Kimia",
-      waktu: "10:15 - 11:40"
+      waktu: "10:15 - 11:40",
     },
     {
       hari: "Senin",
@@ -737,7 +732,7 @@ function initApp() {
 
     tugasList.innerHTML = "";
     const now = new Date();
-    
+
     // Process expired tasks first (sequentially to avoid race conditions)
     for (const [index, t] of tugasData.entries()) {
       const deadlineDate = new Date(t.deadline);
@@ -847,10 +842,28 @@ function initApp() {
     }
   }
 
-  window.toggleSelesai = (key, checked) => {
+  window.toggleSelesai = async (key, checked) => {
     if (role === "admin") return;
     tugasSelesai[key] = checked;
-    set(selesaiRef, tugasSelesai);
+
+    // Simpan ke Firebase dengan error handling
+    try {
+      await set(selesaiRef, tugasSelesai);
+      console.log("Tugas berhasil disimpan ke Firebase:", tugasSelesai);
+    } catch (error) {
+      console.error("Error menyimpan ke Firebase:", error);
+      alert("Gagal menyimpan ke server. Tugas disimpan di lokal browser saja.");
+    }
+
+    // Simpan juga ke localStorage sebagai backup
+    const localStorageKey = "tugasSelesai_" + absen;
+    localStorage.setItem(localStorageKey, JSON.stringify(tugasSelesai));
+    console.log(
+      "Tugas disimpan ke localStorage:",
+      localStorageKey,
+      tugasSelesai,
+    );
+
     renderTugas(); // Render ulang untuk efek visual
   };
 
@@ -931,7 +944,9 @@ function initApp() {
   });
 
   /* DAFTAR SEMUA SISWA - Modal functionality */
-  const btnDaftarSemuaSiswa = document.getElementById("btnDaftarSemuaSiswaFloating");
+  const btnDaftarSemuaSiswa = document.getElementById(
+    "btnDaftarSemuaSiswaFloating",
+  );
   const modalSemuaSiswa = document.getElementById("modalSemuaSiswa");
   const semuaSiswaList = document.getElementById("semuaSiswaList");
   const modalProfilSiswa = document.getElementById("modalProfilSiswa");
@@ -950,15 +965,17 @@ function initApp() {
   if (btnDaftarSemuaSiswa) {
     btnDaftarSemuaSiswa.addEventListener("click", async () => {
       if (!modalSemuaSiswa || !semuaSiswaList) return;
-      
+
       modalSemuaSiswa.style.display = "flex";
-      semuaSiswaList.innerHTML = "<p style='text-align:center;color:#666'>Memuat data siswa...</p>";
-      
+      semuaSiswaList.innerHTML =
+        "<p style='text-align:center;color:#666'>Memuat data siswa...</p>";
+
       // Ambil semua data siswa dari Firebase
       const siswaSnapshot = await get(ref(db, "siswa"));
-      
+
       if (!siswaSnapshot.exists()) {
-        semuaSiswaList.innerHTML = "<p style='text-align:center;color:#666'>Belum ada siswa yang terdaftar.</p>";
+        semuaSiswaList.innerHTML =
+          "<p style='text-align:center;color:#666'>Belum ada siswa yang terdaftar.</p>";
         return;
       }
 
@@ -969,7 +986,7 @@ function initApp() {
         if (siswaData[absen].role !== "admin") {
           semuaSiswa.push({
             absen: absen,
-            ...siswaData[absen]
+            ...siswaData[absen],
           });
         }
       }
@@ -978,16 +995,18 @@ function initApp() {
       semuaSiswa.sort((a, b) => parseInt(a.absen) - parseInt(b.absen));
 
       if (semuaSiswa.length === 0) {
-        semuaSiswaList.innerHTML = "<p style='text-align:center;color:#666'>Belum ada siswa yang terdaftar.</p>";
+        semuaSiswaList.innerHTML =
+          "<p style='text-align:center;color:#666'>Belum ada siswa yang terdaftar.</p>";
         return;
       }
 
       // Tampilkan daftar siswa
       semuaSiswaList.innerHTML = "";
       semuaSiswa.forEach((siswa) => {
-        const defaultFoto = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiNmZmY1ZTYiLz4KPHBhdGggZD0iTTI1IDI1QzI3LjIgMjUgMjkgMjIuMiAyOSAyMEMyOSAxNy44IDI3LjIgMTYgMjUgMTZDMTYuOCAxNiAxNSAxNy44IDE1IDIwQzE1IDIyLjIgMTYuOCAyNSAyNSAyNVoiIGZpbGw9IiMzZTJjMjMiLz4KPHBhdGggZD0iTTMwIDI1QzMwIDI4LjMgMjduMyAzMSAyNSAzMUMyMi43IDMxIDIwIDI4LjMgMjAgMjVDMjAgMjEuNyAyMi43IDE5IDI1IDE5QzI3LjMgMTkgMzAgMjEuNyAzMCAyNVoiIGZpbGw9IiMzZTJjMjMiLz4KPC9zdmc+";
+        const defaultFoto =
+          "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiNmZmY1ZTYiLz4KPHBhdGggZD0iTTI1IDI1QzI3LjIgMjUgMjkgMjIuMiAyOSAyMEMyOSAxNy44IDI3LjIgMTYgMjUgMTZDMTYuOCAxNiAxNSAxNy44IDE1IDIwQzE1IDIyLjIgMTYuOCAyNSAyNSAyNVoiIGZpbGw9IiMzZTJjMjMiLz4KPHBhdGggZD0iTTMwIDI1QzMwIDI4LjMgMjduMyAzMSAyNSAzMUMyMi43IDMxIDIwIDI4LjMgMjAgMjVDMjAgMjEuNyAyMi43IDE5IDI1IDE5QzI3LjMgMTkgMzAgMjEuNyAzMCAyNVoiIGZpbGw9IiMzZTJjMjMiLz4KPC9zdmc+";
         const fotoSrc = siswa.fotoURL || defaultFoto;
-        
+
         const item = document.createElement("div");
         item.className = "semua-siswa-item";
         item.onclick = () => lihatProfilSiswa(siswa.absen, siswa.nama);
