@@ -11,6 +11,7 @@ admin.initializeApp({
 const db = admin.database();
 
 async function kirimNotifikasiTugas(mapel, deskripsi) {
+
   const snapshot = await db.ref("fcmTokens").once("value");
 
   if (!snapshot.exists()) {
@@ -21,20 +22,24 @@ async function kirimNotifikasiTugas(mapel, deskripsi) {
   const tokens = [];
 
   snapshot.forEach((child) => {
-    tokens.push(child.val().token);
+    const token = child.val().token;
+    if (token) tokens.push(token);
   });
+
+  const uniqueTokens = [...new Set(tokens)];
 
   const message = {
     notification: {
       title: "📝 Tugas Baru Ditambahkan",
-      body: `${mapel} - ${deskripsi.substring(0, 60)}`,
+      body: `${mapel} - ${deskripsi.substring(0, 60)}`
     },
-    tokens: tokens,
+    tokens: uniqueTokens
   };
 
   const response = await admin.messaging().sendEachForMulticast(message);
 
-  console.log("Notifikasi terkirim:", response.successCount);
+  console.log("Total token:", uniqueTokens.length);
+  console.log("Berhasil:", response.successCount);
 }
 
 module.exports = kirimNotifikasiTugas;
