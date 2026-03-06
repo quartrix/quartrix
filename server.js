@@ -1,9 +1,14 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const cors = require("cors");
 const kirimNotifikasiTugas = require("./sendNotification");
 
 const app = express();
+
+app.use(cors());
 app.use(bodyParser.json());
+
+app.options("*", cors());
 
 app.post("/sendNotification", async (req, res) => {
   const { mapel, deskripsi } = req.body;
@@ -20,5 +25,5 @@ app.post("/sendNotification", async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("Server berjalan di port", PORT);
+  console.log("Server notifikasi berjalan di port " + PORT);
 });
