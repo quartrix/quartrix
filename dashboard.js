@@ -897,17 +897,6 @@ async function initApp() {
     }
   }
 
-  await fetch("https://quartrix-production.up.railway.app/sendNotification", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      mapel: mapel,
-      deskripsi: deskripsi
-    })
-  });
-
   window.toggleSelesai = async (key, checked) => {
     if (role === "admin") return;
     tugasSelesai[key] = checked;
