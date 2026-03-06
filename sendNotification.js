@@ -12,20 +12,19 @@ const db = admin.database();
 
 async function kirimNotifikasiTugas(mapel, deskripsi) {
 
-  const snapshot = await db.ref("fcmTokens").once("value");
+  const snapshot = await db.ref("fcmtokens").once("value");
 
   if (!snapshot.exists()) {
     console.log("Tidak ada token siswa");
     return;
   }
 
-  const tokensSet = new Set();
+  const tokens = [];
 
   snapshot.forEach((child) => {
-    tokensSet.add(child.val().token);
+    // Key adalah token itu sendiri
+    tokens.push(child.key);
   });
-
-  const tokens = Array.from(tokensSet);
 
   const uniqueTokens = [...new Set(tokens)];
 

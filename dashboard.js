@@ -1345,23 +1345,18 @@ async function initApp() {
 
       if (!token) return;
 
-      const tokenRef = ref(db, "fcmTokens/" + absen);
+      const tokenRef = ref(db, "fcmtokens/" + token);
       const snapshot = await get(tokenRef);
 
       if (snapshot.exists()) {
-        const oldToken = snapshot.val().token;
-
-        if (oldToken === token) {
-          console.log("Token sama, tidak update database");
-          localStorage.setItem("fcmTokenSaved", "true");
-          return;
-        }
+        console.log("Token sudah ada, tidak perlu update");
+        localStorage.setItem("fcmTokenSaved", "true");
+        return;
       }
 
       await set(tokenRef, {
-        token: token,
         nama: nama,
-        updatedAt: new Date().toISOString()
+        absen: absen
       });
 
       console.log("Token baru disimpan");
