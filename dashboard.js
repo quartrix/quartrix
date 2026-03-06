@@ -1326,12 +1326,6 @@ async function initApp() {
       return;
     }
 
-    // CEGAH DUPLIKAT DI BROWSER
-    if (localStorage.getItem("fcmTokenSaved") === "true") {
-      console.log("Token sudah pernah disimpan di device ini");
-      return;
-    }
-
     try {
       const registration = await registerServiceWorker();
       if (!registration) return;
@@ -1345,24 +1339,16 @@ async function initApp() {
 
       if (!token) return;
 
+      // Langsung simpan token tanpa cek apakah sudah ada
+      // Setiap device/browser akan punya entry sendiri
       const tokenRef = ref(db, "fcmtokens/" + token);
-      const snapshot = await get(tokenRef);
-
-      if (snapshot.exists()) {
-        console.log("Token sudah ada, tidak perlu update");
-        localStorage.setItem("fcmTokenSaved", "true");
-        return;
-      }
-
+      
       await set(tokenRef, {
         nama: nama,
         absen: absen
       });
 
-      console.log("Token baru disimpan");
-
-      // tandai sudah tersimpan
-      localStorage.setItem("fcmTokenSaved", "true");
+      console.log("Token disimpan ke fcmtokens:", token);
 
     } catch (error) {
       console.error("Error getting FCM token:", error);
@@ -1444,63 +1430,4 @@ async function initApp() {
     }
   }
 }
-async function initFCM() {
-  try {
 
-    if (!("serviceWorker" in navigator)) {
-      console.log("Service Worker tidak didukung");
-      return;
-    }
-
-    console.log("Registering Service Worker...");
-
-    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-
-    console.log("Service Worker registered:", registration);
-
-    const messaging = getMessaging(app);
-
-    const permission = await Notification.requestPermission();
-
-    if (permission !== "granted") {
-      console.log("Permission not granted");
-      return;
-    }
-
-    const token = await getToken(messaging, {
-      vapidKey: "BNi-Tt9FG9CYQJTTRIgK5g-_6RvI-AZ4juWhxSfh01fKv4lpvzLKWHfNYAgnrzsPCkUh_sLOwzmFclURRJM6leQ",
-      serviceWorkerRegistration: registration
-    });
-
-    if (!token) {
-      console.log("Token tidak didapat");
-      return;
-    }
-
-    console.log("FCM Token:", token);
-
-    // Gunakan absen sebagai key (bukan Date.now() yang membuat duplikat)
-    await set(ref(db, "fcmTokens/" + absen), {
-      token: token,
-      nama: localStorage.getItem("nama"),
-      updatedAt: new Date().toISOString()
-    });
-
-    console.log("Token berhasil disimpan ke RTDB");
-
-    onMessage(messaging, (payload) => {
-      console.log("Foreground message:", payload);
-
-      const title = payload.notification?.title || "Tugas Baru!";
-      const body = payload.notification?.body || "Admin menambahkan tugas baru";
-
-      new Notification(title, {
-        body: body,
-        icon: "https://i.ibb.co/7xxVWwH7/IMG-8428.png"
-      });
-    });
-
-  } catch (err) {
-    console.error("FCM error:", err);
-  }
-}
