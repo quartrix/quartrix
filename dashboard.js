@@ -1309,12 +1309,16 @@ async function initApp() {
   }
 
   async function getFCMToken() {
+
+    // CEGAH DUPLIKAT DI BROWSER
+    if (localStorage.getItem("fcmTokenSaved") === "true") {
+      console.log("Token sudah pernah disimpan di device ini");
+      return;
+    }
+
     try {
       const registration = await registerServiceWorker();
-      if (!registration) {
-        console.log("Gagal registrasi service worker");
-        return;
-      }
+      if (!registration) return;
 
       messaging = getMessaging(app);
 
@@ -1328,17 +1332,16 @@ async function initApp() {
       const tokenRef = ref(db, "fcmTokens/" + absen);
       const snapshot = await get(tokenRef);
 
-      // CEK TOKEN LAMA
       if (snapshot.exists()) {
         const oldToken = snapshot.val().token;
 
         if (oldToken === token) {
           console.log("Token sama, tidak update database");
+          localStorage.setItem("fcmTokenSaved", "true");
           return;
         }
       }
 
-      // SIMPAN TOKEN BARU HANYA JIKA BERBEDA
       await set(tokenRef, {
         token: token,
         nama: nama,
@@ -1346,6 +1349,9 @@ async function initApp() {
       });
 
       console.log("Token baru disimpan");
+
+      // tandai sudah tersimpan
+      localStorage.setItem("fcmTokenSaved", "true");
 
     } catch (error) {
       console.error("Error getting FCM token:", error);
