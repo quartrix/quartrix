@@ -849,45 +849,33 @@ async function initApp() {
 });
 
   async function tambahTugas() {
-    console.log("Fungsi tambahTugas dipanggil");
-    if (role !== "admin") {
-      console.log("Role bukan admin:", role);
-      alert("Hanya admin yang bisa menambah tugas!");
-      return;
-    }
-    const mapelBaru = document.getElementById("mapelBaru");
-    const tugasBaru = document.getElementById("tugasBaru");
-    const deadlineBaru = document.getElementById("deadlineBaru");
-    const mapel = mapelBaru.value.trim();
-    const desc = tugasBaru.value.trim();
-    const dead = deadlineBaru.value;
-    if (!mapel || !desc || !dead) {
-      alert("Isi semua field!");
-      return;
-    }
-    const newTugasRef = push(tugasRef);
-    set(newTugasRef, {
-      mapel: mapel,
-      deskripsi: desc,
-      deadline: dead,
-      tersedia: true,
-      createdAt: Date.now()
-    });
-    fetch("/sendNotification", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        mapel: mapel,
-        deskripsi: desc
-      })
-    });
-    mapelBaru.value = "";
-    tugasBaru.value = "";
-    deadlineBaru.value = "";
-    alert("Tugas berhasil dipublish kepada semua siswa!");
+  const mapel = mapelBaru.value.trim();
+  const desc = tugasBaru.value.trim();
+  const deadline = deadlineBaru.value;
+
+  if (!mapel || !desc) {
+    alert("Mapel dan deskripsi harus diisi!");
+    return;
   }
+
+  // kirim notifikasi ke server Railway
+  await fetch("https://quartrix-production.up.railway.app/sendNotification", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      mapel: mapel,
+      deskripsi: desc
+    })
+  });
+
+  mapelBaru.value = "";
+  tugasBaru.value = "";
+  deadlineBaru.value = "";
+
+  alert("Tugas berhasil dipublish kepada semua siswa!");
+}
 
   function hapusTugas(key) {
     if (role !== "admin") return;
