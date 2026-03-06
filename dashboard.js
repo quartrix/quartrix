@@ -1339,10 +1339,23 @@ async function initApp() {
 
       if (!token) return;
 
-      // Langsung simpan token tanpa cek apakah sudah ada
-      // Setiap device/browser akan punya entry sendiri
+      // Cek apakah token sudah ada di database
       const tokenRef = ref(db, "fcmtokens/" + token);
-      
+      const snapshot = await get(tokenRef);
+
+      if (snapshot.exists()) {
+        // Token sudah ada, cek apakah absen sama
+        const existingData = snapshot.val();
+        if (existingData.absen === absen) {
+          console.log("Token sama dan absen sama, tidak perlu update");
+          return;
+        } else {
+          // Token sama tapi absen berbeda - ini case aneh, tetap update
+          console.log("Token sama tapi absen berbeda, update data");
+        }
+      }
+
+      // Simpan atau update token
       await set(tokenRef, {
         nama: nama,
         absen: absen
