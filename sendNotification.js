@@ -29,7 +29,7 @@ const snapshot = await db.ref("fcmtokens").once("value");
   const uniqueTokens = [...new Set(tokens)];
 
   const message = {
-    notification: {
+    data: {
       title: "📝 Tugas Baru Ditambahkan",
       body: `${mapel} - ${deskripsi.substring(0, 60)}`
     },

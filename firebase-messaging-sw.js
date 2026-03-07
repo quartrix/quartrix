@@ -18,10 +18,10 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage(function(payload) {
   console.log('[firebase-messaging-sw.js] Background message:', payload);
 
-  const notificationTitle = payload.notification?.title || 'Tugas Baru!';
+  const notificationTitle = payload.data?.title || 'Tugas Baru!';
 
   const notificationOptions = {
-    body: payload.notification?.body || 'Admin telah menambahkan tugas baru',
+    body: payload.data?.body || 'Admin telah menambahkan tugas baru',
     icon: 'https://i.ibb.co/7xxVWwH7/IMG-8428.png',
     badge: 'https://i.ibb.co/7xxVWwH7/IMG-8428.png',
     tag: 'tugas-notification',
