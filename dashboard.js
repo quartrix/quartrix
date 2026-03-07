@@ -743,6 +743,8 @@ async function initApp() {
 
   // Fixed: Using for...of loop instead of forEach to properly await async functions
   async function renderTugas() {
+    if (!tugasList) return;
+    
     if (!tugasData || tugasData.length === 0) {
       tugasList.innerHTML =
         "<p style='text-align:center;color:#666'>Belum ada tugas 📭</p>";
