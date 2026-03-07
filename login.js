@@ -234,7 +234,12 @@ async function restoreSession() {
         resolve(auth.currentUser);
       } else {
         console.log("[Session] Timeout waiting for session, creating new one...");
-        unsubscribe().catch(() => {});
+        // Unsubscribe dulu sebelum create baru ( unsubscribe adalah function, bukan Promise )
+        try {
+          unsubscribe();
+        } catch (e) {
+          console.log("[Session] Unsubscribe error (can be ignored):", e);
+        }
         signInAnonymously(auth)
           .then(result => {
             console.log("[Session] New anonymous user after timeout:", result.user.uid);
