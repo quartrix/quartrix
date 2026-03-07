@@ -24,7 +24,6 @@ import {
   getMessaging,
   getToken,
   onMessage,
-  onTokenRefresh,
   deleteToken,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
@@ -1486,50 +1485,11 @@ async function initApp() {
     }
   }
 
-  // Listener untuk token refresh - ini penting untuk semua device!
-  async function setupTokenRefreshListener() {
-    if (role === 'admin') return;
-    
-    try {
-      const registration = await registerServiceWorker();
-      if (!registration) return;
-
-      const refreshMessaging = getMessaging(app);
-      
-      // Dengarkan event token refresh
-      onTokenRefresh(async () => {
-        console.log('🔄 FCM Token di-refresh oleh server!');
-        
-        try {
-          const newToken = await getToken(refreshMessaging, {
-            vapidKey: "BNi-Tt9FG9CYQJTTRIgK5g-_6RvI-AZ4juWhxSfh01fKv4lpvzLKWHfNYAgnrzsPCkUh_sLOwzmFclURRJM6leQ",
-            serviceWorkerRegistration: registration
-          });
-          
-          if (newToken) {
-            console.log('Token baru diperoleh:', newToken.substring(0, 20) + '...');
-            await saveTokenToStorage(newToken);
-          }
-        } catch (error) {
-          console.error('Error saat refresh token:', error);
-        }
-      });
-      
-      console.log('Token refresh listener aktif');
-    } catch (error) {
-      console.log('Token refresh listener tidak tersedia:', error.message);
-    }
-  }
-
-
   // Variabel untuk messaging
   let messaging = null;
 
   // Minta notifikasi SEGERA setelah role diketahui (tanpa timeout)
   requestNotificationImmediately();
-
-  // Setup token refresh listener untuk menangani token yang di-refresh oleh FCM
-  setupTokenRefreshListener();
 
   // Global function to request notification permission (called from badge click)
   window.requestNotificationPermission = async function () {
