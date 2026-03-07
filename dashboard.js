@@ -54,6 +54,23 @@ function isIOSafari() {
   return (isIOS && isSafari) || isWKWebView;
 }
 
+// 🔥 FIX: Fungsi untuk ambil data user dari Firebase (fallback untuk iOS Safari)
+// Ini akan digunakan ketika localStorage kosong tapi session Firebase Auth masih ada
+async function getUserDataFromFirebase(uid) {
+  try {
+    const userRef = ref(db, "users/" + uid);
+    const snapshot = await get(userRef);
+    if (snapshot.exists()) {
+      console.log("[Firebase] User data retrieved from Firebase:", snapshot.val());
+      return snapshot.val();
+    }
+    return null;
+  } catch (error) {
+    console.error("[Firebase] Error getting user data:", error);
+    return null;
+  }
+}
+
 // Fungsi untuk mendeteksi apakah browser support localStorage dengan benar
 function isLocalStorageAvailable() {
   try {
@@ -258,6 +275,39 @@ async function initAuth() {
     // 🔥 FIX: Gunakan restoreSession untuk mencoba restore session dulu
     await restoreSession();
     console.log("Anonymous login berhasil");
+
+    // 🔥 FIX: Cek apakah localStorage kosong tapi session Firebase ada (iOS Safari)
+    // Jika kosong, ambil data dari Firebase dan restore ke localStorage
+    const storedRole = localStorage.getItem("role");
+    const storedNama = localStorage.getItem("nama");
+    const storedAbsen = localStorage.getItem("absen");
+    
+    if (!storedRole || !storedNama || !storedAbsen) {
+      console.log("[iOS Fix] localStorage kosong, mencoba restore dari Firebase...");
+      
+      // Ambil uid dari Firebase auth session yang sudah direstore
+      const currentUid = auth.currentUser?.uid;
+      
+      if (currentUid) {
+        // Coba ambil data user dari Firebase
+        const firebaseUserData = await getUserDataFromFirebase(currentUid);
+        
+        if (firebaseUserData) {
+          console.log("[iOS Fix] Data ditemukan di Firebase, restore ke localStorage:", firebaseUserData);
+          
+          // Restore ke localStorage
+          localStorage.setItem("role", firebaseUserData.role || "siswa");
+          localStorage.setItem("nama", firebaseUserData.nama || "");
+          localStorage.setItem("absen", firebaseUserData.absen || "");
+          localStorage.setItem("uid", currentUid);
+          localStorage.setItem("isLogin", "true");
+          
+          console.log("[iOS Fix] Session berhasil direstore dari Firebase!");
+        } else {
+          console.log("[iOS Fix] Data TIDAK ditemukan di Firebase, user harus login ulang");
+        }
+      }
+    }
 
     try {
       // Sinkronkan status admin jika perlu

@@ -29,6 +29,41 @@ function safeRemove(key) {
   } catch (e) {}
 }
 
+// Fungsi untuk simpan data user ke Firebase (untuk iOS Safari session recovery)
+async function saveUserDataToFirebase(uid, role, nama, absen) {
+  try {
+    const userRef = ref(db, "users/" + uid);
+    await set(userRef, {
+      role: role,
+      nama: nama,
+      absen: absen,
+      lastLogin: new Date().toISOString(),
+      isOnline: true
+    });
+    console.log("[Firebase] User data saved to Firebase:", { uid, role, nama, absen });
+    return true;
+  } catch (error) {
+    console.error("[Firebase] Error saving user data:", error);
+    return false;
+  }
+}
+
+// Fungsi untuk ambil data user dari Firebase (fallback untuk iOS Safari)
+async function getUserDataFromFirebase(uid) {
+  try {
+    const userRef = ref(db, "users/" + uid);
+    const snapshot = await get(userRef);
+    if (snapshot.exists()) {
+      console.log("[Firebase] User data retrieved from Firebase:", snapshot.val());
+      return snapshot.val();
+    }
+    return null;
+  } catch (error) {
+    console.error("[Firebase] Error getting user data:", error);
+    return null;
+  }
+}
+
 // Config Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyCP-Gha19gZ6ZkYCzZ9vh9QL2tKYmNVoCk",
@@ -231,12 +266,15 @@ window.login = async () => {
       const userCredential = await signInOnce();
       const uid = userCredential.uid;
       
-      // Simpan status admin ke Firebase database
+// Simpan status admin ke Firebase database
       await set(ref(db, "admin/" + uid), {
         isAdmin: true,
         nama: "ADMIN",
         createdAt: new Date().toISOString()
       });
+      
+      // 🔥 FIX: Simpan data user ke Firebase untuk iOS Safari session recovery
+      await saveUserDataToFirebase(uid, "siswa", "ADMIN", "-");
       
       // Simpan ke localStorage ✅ PAKAI SAFE VERSION
       safeSet("isLogin", "true");
@@ -309,9 +347,12 @@ window.login = async () => {
       // Validasi nama (case-insensitive)
       if (data.nama.toLowerCase() === username.toLowerCase()) {
         try {
-          // Gunakan 1x login saja, tunggu auth state ready
+// Gunakan 1x login saja, tunggu auth state ready
           const userCredential = await signInOnce();
           const uid = userCredential.uid;
+          
+          // 🔥 FIX: Simpan data user ke Firebase untuk iOS Safari session recovery
+          await saveUserDataToFirebase(uid, "siswa", data.nama, password);
           
           // Simpan ke localStorage ✅ PAKAI SAFE VERSION
           safeSet("isLogin", "true");
