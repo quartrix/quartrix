@@ -1441,6 +1441,11 @@ async function initApp() {
       return;
     }
 
+    // 🔥 FIX: Deteksi iOS Safari - menggunakan notifikasi browser langsung sebagai fallback
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+    const isIOSafari = isIOS && isSafari;
+
     // Cek apakah browser support Notification API
     if (!('Notification' in window)) {
       console.log('Browser tidak mendukung notifikasi');
@@ -1448,10 +1453,40 @@ async function initApp() {
       if (window.showToastNotification) {
         window.showToastNotification(
           'Notifikasi Tidak Didukung',
-          'Browser ini tidak mendukung push notification',
+          'Browser ini tidak mendukung push notification. Notifikasi dalam app akan tetap bekerja.',
           false
         );
       }
+      return;
+    }
+
+    // 🔥 FIX: Untuk iOS Safari, gunakan notifikasi browser langsung sebagai gantinya
+    if (isIOSafari) {
+      console.log('iOS Safari detected - using browser notifications');
+      
+      // Coba minta izin notifikasi browser langsung
+      if (Notification.permission === 'default' || Notification.permission === 'denied') {
+        try {
+          const permission = await Notification.requestPermission();
+          console.log('iOS Safari notification permission:', permission);
+          
+          if (permission === 'granted') {
+            // Beri tahu user bahwa notifikasi diaktifkan
+            if (window.showToastNotification) {
+              window.showToastNotification(
+                'Notifikasi Aktif! 🔔',
+                'Anda akan menerima notifikasi tugas baru.',
+                false
+              );
+            }
+          }
+        } catch (e) {
+          console.log('iOS Safari notification request failed:', e);
+        }
+      }
+      
+      // tetap lanjutkan ke FCM jika didukung, jika tidak berarti sudah tidak didukung
+      console.log('iOS Safari: Using in-app notifications (toast) as primary notification method');
       return;
     }
 
