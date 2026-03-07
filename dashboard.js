@@ -24,6 +24,7 @@ import {
   getMessaging,
   getToken,
   onMessage,
+  onTokenRefresh,
   deleteToken,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js";
 
@@ -1263,7 +1264,7 @@ async function initApp() {
      FIREBASE CLOUD MESSAGING - PUSH NOTIFICATION
      ========================================== */
 
-  // Langsung minta izin notifikasi saat halaman dimuat (dengan cek permission dulu)
+// Langsung minta izin notifikasi saat halaman dimuat (dengan cek permission dulu)
   async function requestNotificationImmediately() {
     // Skip untuk admin
     if (role === 'admin') {
@@ -1301,6 +1302,55 @@ async function initApp() {
     }
   }
 
+  // Generate atau get device ID
+  function getDeviceId() {
+    let deviceId = localStorage.getItem('quartrix_device_id');
+    if (!deviceId) {
+      deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('quartrix_device_id', deviceId);
+      console.log('New device ID generated:', deviceId);
+    }
+    return deviceId;
+  }
+
+  // Get device info
+  function getDeviceInfo() {
+    const ua = navigator.userAgent;
+    let deviceType = 'desktop';
+    let browser = 'unknown';
+    let os = 'unknown';
+
+    // Detect device type
+    if (/iPad|iPhone|iPod/.test(ua)) {
+      deviceType = 'ios';
+    } else if (/Android/.test(ua)) {
+      deviceType = 'android';
+    } else if (/Windows Phone/.test(ua)) {
+      deviceType = 'windows-phone';
+    }
+
+    // Detect browser
+    if (/Chrome/.test(ua)) browser = 'chrome';
+    else if (/Safari/.test(ua) && !/Chrome/.test(ua)) browser = 'safari';
+    else if (/Firefox/.test(ua)) browser = 'firefox';
+    else if (/Edge/.test(ua)) browser = 'edge';
+
+    // Detect OS
+    if (/Windows/.test(ua)) os = 'windows';
+    else if (/Mac/.test(ua)) os = 'macos';
+    else if (/Linux/.test(ua)) os = 'linux';
+    else if (/Android/.test(ua)) os = 'android';
+    else if (/iOS|iPhone|iPad|iPod/.test(ua)) os = 'ios';
+
+    return {
+      deviceType,
+      browser,
+      os,
+      userAgent: ua,
+      timestamp: new Date().toISOString()
+    };
+  }
+
   async function registerServiceWorker() {
     if ("serviceWorker" in navigator) {
       try {
@@ -1315,10 +1365,69 @@ async function initApp() {
     return null;
   }
 
+  // Simpan token ke Firebase dan localStorage
+  async function saveTokenToStorage(token) {
+    if (!token || !absen) {
+      console.log('Token atau absen tidak ada, skip save');
+      return false;
+    }
 
+    const deviceId = getDeviceId();
+    const deviceInfo = getDeviceInfo();
 
-async function getFCMToken() {
+    try {
+      // Simpan ke Firebase dengan struktur: fcmtokens/<token>
+      const tokenRef = ref(db, "fcmtokens/" + token);
+      await set(tokenRef, {
+        nama: nama,
+        absen: absen,
+        deviceId: deviceId,
+        deviceInfo: deviceInfo,
+        lastActive: new Date().toISOString()
+      });
 
+      // Simpan ke localStorage sebagai backup
+      localStorage.setItem('quartrix_fcm_token', token);
+      localStorage.setItem('quartrix_fcm_token_absen', absen);
+      localStorage.setItem('quartrix_fcm_token_time', new Date().toISOString());
+
+      console.log('Token berhasil disimpan ke Firebase dan localStorage');
+      console.log('Token:', token.substring(0, 20) + '...');
+      console.log('Device ID:', deviceId);
+      console.log('Device Info:', deviceInfo);
+
+      return true;
+    } catch (error) {
+      console.error('Error menyimpan token:', error);
+      return false;
+    }
+  }
+
+  // Cek apakah token sudah ada di Firebase
+  async function isTokenInFirebase(token) {
+    try {
+      const tokenRef = ref(db, "fcmtokens/" + token);
+      const snapshot = await get(tokenRef);
+      return snapshot.exists();
+    } catch (error) {
+      console.error('Error cek token di Firebase:', error);
+      return false;
+    }
+  }
+
+  // Get token dari localStorage jika ada
+  function getTokenFromLocalStorage() {
+    const savedToken = localStorage.getItem('quartrix_fcm_token');
+    const savedAbsen = localStorage.getItem('quartrix_fcm_token_absen');
+    
+    if (savedToken && savedAbsen === absen) {
+      console.log('Token ditemukan di localStorage');
+      return savedToken;
+    }
+    return null;
+  }
+
+  async function getFCMToken() {
     // DEBUG: Cek nilai absen
     console.log("ABSEN:", absen);
 
@@ -1334,40 +1443,81 @@ async function getFCMToken() {
 
       messaging = getMessaging(app);
 
+      // Coba dulu dengan token yang sudah ada di localStorage
+      const existingToken = getTokenFromLocalStorage();
+      if (existingToken) {
+        console.log('Mencoba gunakan token dari localStorage...');
+        const isValid = await isTokenInFirebase(existingToken);
+        if (isValid) {
+          console.log('Token dari localStorage valid, tidak perlu generate baru');
+          // Tetap update lastActive
+          await saveTokenToStorage(existingToken);
+          return;
+        } else {
+          console.log('Token dari localStorage tidak valid di Firebase, generate ulang');
+          localStorage.removeItem('quartrix_fcm_token');
+        }
+      }
+
+      // Generate token baru
+      console.log('Generate FCM token baru...');
       const token = await getToken(messaging, {
         vapidKey: "BNi-Tt9FG9CYQJTTRIgK5g-_6RvI-AZ4juWhxSfh01fKv4lpvzLKWHfNYAgnrzsPCkUh_sLOwzmFclURRJM6leQ",
         serviceWorkerRegistration: registration
       });
 
-      if (!token) return;
-
-      // CEK LEBIH KOMPLIT: Cek apakah token ini sudah ada di database
-      const allTokensRef = ref(db, "fcmtokens");
-      const allSnapshot = await get(allTokensRef);
-      
-      if (allSnapshot.exists()) {
-        const allTokens = allSnapshot.val();
-        // Cek apakah token sudah ada sebagai key
-        if (allTokens && allTokens.hasOwnProperty(token)) {
-          console.log("Token sudah ada di database (sebagai key), skip save");
-          return;
-        }
+      if (!token) {
+        console.log('Tidak ada token yang diperoleh');
+        return;
       }
 
-      // Hapus flag lama agar bisa save ulang dengan struktur baru
-      localStorage.removeItem("fcmTokenSaved");
-
-      // Simpan token dengan key = token (lowercase)
-      const tokenRef = ref(db, "fcmtokens/" + token);
-      await set(tokenRef, {
-        nama: nama,
-        absen: absen
-      });
-
-      console.log("Token disimpan ke fcmtokens:", token);
+      // Simpan token
+      await saveTokenToStorage(token);
 
     } catch (error) {
       console.error("Error getting FCM token:", error);
+      
+      // Jika error, coba lagi dengan delay
+      if (error.code === 'messaging/failed-start-background-token-fetch' || 
+          error.code === 'messaging/unsupported-browser' ||
+          error.message?.includes('permission')) {
+        console.log('FCM tidak didukung di browser ini, skip');
+      }
+    }
+  }
+
+  // Listener untuk token refresh - ini penting untuk semua device!
+  async function setupTokenRefreshListener() {
+    if (role === 'admin') return;
+    
+    try {
+      const registration = await registerServiceWorker();
+      if (!registration) return;
+
+      const refreshMessaging = getMessaging(app);
+      
+      // Dengarkan event token refresh
+      onTokenRefresh(async () => {
+        console.log('🔄 FCM Token di-refresh oleh server!');
+        
+        try {
+          const newToken = await getToken(refreshMessaging, {
+            vapidKey: "BNi-Tt9FG9CYQJTTRIgK5g-_6RvI-AZ4juWhxSfh01fKv4lpvzLKWHfNYAgnrzsPCkUh_sLOwzmFclURRJM6leQ",
+            serviceWorkerRegistration: registration
+          });
+          
+          if (newToken) {
+            console.log('Token baru diperoleh:', newToken.substring(0, 20) + '...');
+            await saveTokenToStorage(newToken);
+          }
+        } catch (error) {
+          console.error('Error saat refresh token:', error);
+        }
+      });
+      
+      console.log('Token refresh listener aktif');
+    } catch (error) {
+      console.log('Token refresh listener tidak tersedia:', error.message);
     }
   }
 
@@ -1377,6 +1527,9 @@ async function getFCMToken() {
 
   // Minta notifikasi SEGERA setelah role diketahui (tanpa timeout)
   requestNotificationImmediately();
+
+  // Setup token refresh listener untuk menangani token yang di-refresh oleh FCM
+  setupTokenRefreshListener();
 
   // Global function to request notification permission (called from badge click)
   window.requestNotificationPermission = async function () {
