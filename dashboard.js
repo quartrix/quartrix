@@ -1315,7 +1315,9 @@ async function initApp() {
     return null;
   }
 
-  async function getFCMToken() {
+
+
+async function getFCMToken() {
 
     // DEBUG: Cek nilai absen
     console.log("ABSEN:", absen);
@@ -1340,31 +1342,35 @@ async function initApp() {
       if (!token) return;
 
       // CEK LEBIH KOMPLIT: Cek apakah token ini sudah ada di database
-      const allTokensRef = ref(db, "fcmTokens");
+      const allTokensRef = ref(db, "fcmtokens");
       const allSnapshot = await get(allTokensRef);
       
       if (allSnapshot.exists()) {
         const allTokens = allSnapshot.val();
         // Cek apakah token sudah ada sebagai key
-        if (allTokens.hasOwnProperty(token)) {
+        if (allTokens && allTokens.hasOwnProperty(token)) {
           console.log("Token sudah ada di database (sebagai key), skip save");
           return;
         }
       }
 
-      // Simpan token dengan key = token
-      const tokenRef = ref(db, "fcmTokens/" + token);
+      // Hapus flag lama agar bisa save ulang dengan struktur baru
+      localStorage.removeItem("fcmTokenSaved");
+
+      // Simpan token dengan key = token (lowercase)
+      const tokenRef = ref(db, "fcmtokens/" + token);
       await set(tokenRef, {
         nama: nama,
         absen: absen
       });
 
-      console.log("Token disimpan ke fcmTokens:", token);
+      console.log("Token disimpan ke fcmtokens:", token);
 
     } catch (error) {
       console.error("Error getting FCM token:", error);
     }
   }
+
 
   // Variabel untuk messaging
   let messaging = null;
