@@ -1313,6 +1313,14 @@ async function initApp() {
     // Cek apakah browser support Notification API
     if (!('Notification' in window)) {
       console.log('Browser tidak mendukung notifikasi');
+      // Coba tampilkan toast info ke user
+      if (window.showToastNotification) {
+        window.showToastNotification(
+          'Notifikasi Tidak Didukung',
+          'Browser ini tidak mendukung push notification',
+          false
+        );
+      }
       return;
     }
 
@@ -1323,21 +1331,36 @@ async function initApp() {
       return;
     }
 
-    // Jika belum granted, baru minta izin
-    try {
-      console.log('Requesting notification permission...');
-      const permission = await Notification.requestPermission();
-      console.log('Permission result:', permission);
-
-      if (permission === 'granted') {
-        console.log('Notifikasi diizinkan! Ambil FCM token...');
-        await getFCMToken();
-      } else {
-        console.log('Izin ditolak:', permission);
-      }
-    } catch (error) {
-      console.error('Error minta izin notifikasi:', error);
+// CEK: Jika sudah denied sebelumnya, tetap coba minta izin lagi
+    // Browser akan tetap menampilkan dialog izin (user harus klik "Allow")
+    if (Notification.permission === 'denied') {
+      console.log('Permission previously denied, will try again');
+      // Tidak return di sini, biarkan mencoba lagi
+      // User akan melihat dialog izin lagi
     }
+
+    // Jika belum ada jawaban (default), baru minta izin
+    // Tapi dengan delay kecil agar page loaded dulu
+    setTimeout(async () => {
+      try {
+        console.log('Requesting notification permission...');
+        const permission = await Notification.requestPermission();
+        console.log('Permission result:', permission);
+
+        if (permission === 'granted') {
+          console.log('Notifikasi diizinkan! Ambil FCM token...');
+          await getFCMToken();
+        } else if (permission === 'denied') {
+          console.log('Izin ditolak oleh user');
+          // Simpan status ini untuk mencegah retry berlebihan
+          localStorage.setItem('notif_permission_denied', 'true');
+        } else {
+          console.log('Izin diabaikan (dismissed) oleh user');
+        }
+      } catch (error) {
+        console.error('Error minta izin notifikasi:', error);
+      }
+    }, 1500); // Delay 1.5 detik agar page fully loaded
   }
 
   // Generate atau get device ID
@@ -1553,7 +1576,7 @@ async function initApp() {
   // Minta notifikasi SEGERA setelah role diketahui (tanpa timeout)
   requestNotificationImmediately();
 
-  // Global function to request notification permission (called from badge click)
+// Global function to request notification permission (called from badge click)
   window.requestNotificationPermission = async function () {
     console.log('Manual request for notification permission');
 
@@ -1567,9 +1590,11 @@ async function initApp() {
       return;
     }
 
+    // Jika denied, tetap coba minta izin lagi
+    // Browser akan menampilkan dialog izin lagi
     if (Notification.permission === 'denied') {
-      alert('Notifikasi diblokir. Silakan aktifkan di pengaturan browser Anda (Settings > Notifications).');
-      return;
+      console.log('Permission previously denied, will try again');
+      // Tidak return di sini, biarkan mencoba lagi
     }
 
     // Request permission
@@ -1584,9 +1609,17 @@ async function initApp() {
     }
   };
 
-  // Listen for foreground messages (if permission already granted)
+// Listen for foreground messages (if permission already granted)
   if (role !== 'admin') {
     try {
+      // Check if Firebase Messaging is supported in this browser
+      // Browsers without Service Worker support or proper notification APIs won't work
+      if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+        console.log('Firebase Messaging is not supported in this browser');
+        console.log('Foreground messaging not available: messaging/unsupported-browser');
+        return;
+      }
+
       const fgMessaging = getMessaging(app);
       onMessage(fgMessaging, (payload) => {
         console.log('Foreground message received:', payload);
