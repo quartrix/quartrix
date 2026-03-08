@@ -1886,13 +1886,21 @@ async function initApp() {
       }
 
       const fgMessaging = getMessaging(app);
+      
+      // Setup message handler with better logging
       onMessage(fgMessaging, (payload) => {
-        console.log('Foreground message received:', payload);
+        console.log('📬 Foreground message received:', payload);
+        console.log('📬 Payload keys:', Object.keys(payload));
+        console.log('📬 Notification:', payload.notification);
+        console.log('📬 Data:', payload.data);
 
-        // Show in-app notification
-        const notificationTitle = payload.notification?.title || 'Tugas Baru!';
-        const notificationBody = payload.notification?.body || 'Admin telah menambahkan tugas baru';
+        // Extract notification data - support both notification and data formats
+        const notificationTitle = payload.notification?.title || payload.data?.title || 'Tugas Baru!';
+        const notificationBody = payload.notification?.body || payload.data?.body || 'Admin telah menambahkan tugas baru';
 
+        console.log('📬 Showing notification:', notificationTitle, notificationBody);
+
+        // Show in-app toast notification
         window.showToastNotification(notificationTitle, notificationBody, true);
 
         // Also show browser notification if permission granted
@@ -1915,8 +1923,10 @@ async function initApp() {
           }
         }
       });
+      
+      console.log('✅ Foreground message listener registered');
     } catch (error) {
-      console.log('Foreground messaging not available:', error);
+      console.log('❌ Foreground messaging error:', error.message);
     }
   }
 }
