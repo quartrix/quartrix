@@ -969,20 +969,17 @@
         document.getElementById("profileBadge").textContent =
           correctAbsen || "?";
 
-        // Load tasks data - always prioritize Firebase data
+        // Load tasks data - use Firebase only (no localStorage)
         // Get logged-in user's absen from localStorage for comparison
         const loginAbsen = localStorage.getItem("absen");
         
-        // Check if viewing own profile (compare as strings to avoid type mismatch)
-        // Use correctAbsen for comparison, not the original URL absen
+        // Check if viewing own profile
         const isOwnProfile = loginAbsen && (String(loginAbsen) === String(correctAbsen) || String(loginAbsen) === String(absenSiswa));
         
         console.log("Viewing profile absen:", correctAbsen, "| Login absen:", loginAbsen, "| Is own profile:", isOwnProfile);
         
-        // Always include localStorage data since it has latest completed tasks before Firebase sync
-        // IMPORTANT: Use loginAbsen from localStorage for localStorage data retrieval
-        // This ensures consistency with how dashboard.js saves tasks
-        await loadTasks(correctAbsen, true, loginAbsen);
+        // Use Firebase only - loadTasks with correctAbsen
+        await loadTasks(correctAbsen);
 
         // Show profile content
         document.getElementById("loadingState").style.display = "none";
@@ -993,12 +990,10 @@
       }
     }
 
-    // Load tasks data
-    async function loadTasks(absen, includeLocalStorage = false, localStorageAbsen = null) {
+    // Load tasks data - Firebase only
+    async function loadTasks(absen) {
       try {
-        // Use localStorageAbsen if provided (for own profile), otherwise use absen
-        const lsAbsen = localStorageAbsen || absen;
-        console.log("Loading tasks for absen:", absen, "| includeLocalStorage:", includeLocalStorage, "| localStorageAbsen:", lsAbsen);
+        console.log("Loading tasks for absen:", absen);
 
         // Get all tasks
         const tugasSnapshot = await get(ref(db, "tugas"));
@@ -1006,7 +1001,7 @@
         console.log("All tasks in Firebase:", semuaTugas);
         console.log("Total task keys:", Object.keys(semuaTugas));
 
-        // Get completed tasks for this student from Firebase
+        // Get completed tasks for this student from Firebase only
         const tugasSelesaiRef = ref(db, "tugasSelesai/" + absen);
         const tugasSelesaiSnapshot = await get(tugasSelesaiRef);
         const firebaseTugasSelesai = tugasSelesaiSnapshot.exists()
@@ -1014,31 +1009,10 @@
           : {};
         console.log("Firebase - Completed tasks for absen", absen, ":", firebaseTugasSelesai);
 
-        // Merge localStorage and Firebase data
-        let tugasSelesai = {};
+        // Use Firebase data only
+        const tugasSelesai = firebaseTugasSelesai;
 
-        // Add Firebase data first
-        Object.assign(tugasSelesai, firebaseTugasSelesai);
-
-        // Add localStorage data only if viewing own profile
-        if (includeLocalStorage) {
-          const localStorageKey = "tugasSelesai_" + lsAbsen;
-          const localTugasSelesai = localStorage.getItem(localStorageKey);
-          console.log("localStorage key:", localStorageKey);
-          console.log("localStorage value:", localTugasSelesai);
-          
-          if (localTugasSelesai) {
-            try {
-              const parsed = JSON.parse(localTugasSelesai);
-              Object.assign(tugasSelesai, parsed);
-              console.log("Merged with localStorage data:", parsed);
-            } catch (e) {
-              console.error("Error parsing localStorage:", e);
-            }
-          }
-        }
-
-        console.log("Final merged tugasSelesai:", tugasSelesai);
+        console.log("Final tugasSelesai:", tugasSelesai);
 
         // Count ALL tasks (including deleted) for debugging
         const totalAllTugas = Object.keys(semuaTugas).length;
