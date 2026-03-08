@@ -929,10 +929,9 @@
         document.getElementById("profileBadge").textContent =
           correctAbsen || "?";
 
-        // Load tasks data using the login absen from localStorage (where dashboard saves task completion)
-        const loginAbsen = localStorage.getItem("absen");
-        const taskAbsen = loginAbsen || correctAbsen;
-        console.log("Using taskAbsen:", taskAbsen, "(loginAbsen:", loginAbsen, ", correctAbsen:", correctAbsen, ")");
+        // Load tasks data using the profile being viewed (from URL parameter), not the logged-in user
+        const taskAbsen = correctAbsen;
+        console.log("Using taskAbsen:", taskAbsen, "(profile absen:", correctAbsen, ")");
         await loadTasks(taskAbsen);
 
         // Show profile content
