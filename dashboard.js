@@ -1391,17 +1391,11 @@ async function initApp() {
       }
 
       if (!lastVisit && availableTasks.length > 0) {
-        window.showToastNotification(
-          'Selamat Datang! 📚',
-          `Ada ${availableTasks.length} tugas yang perlu diselesaikan`,
-          false
-        );
+        // Toast notification disabled
+        console.log('Welcome message (toast disabled)');
       } else if (newTasksCount > 0) {
-        window.showToastNotification(
-          'Tugas Baru! 📝',
-          `Admin telah menambahkan ${newTasksCount} tugas baru. Check sekarang!`,
-          true
-        );
+        // Toast notification disabled
+        console.log('New tasks notification (toast disabled):', newTasksCount);
       }
 
       saveLastVisitTugas();
@@ -1432,11 +1426,8 @@ async function initApp() {
           })[0];
 
         if (latestTask) {
-          window.showToastNotification(
-            'Tugas Baru Ditambahkan! 📝',
-            `${latestTask.mapel}: ${latestTask.deskripsi.substring(0, 50)}${latestTask.deskripsi.length > 50 ? '...' : ''}`,
-            true
-          );
+          // Toast notification disabled
+          console.log('New task added notification (toast disabled)');
         }
       }
 
